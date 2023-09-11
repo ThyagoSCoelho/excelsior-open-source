@@ -1,54 +1,52 @@
 import torch
-import torch.nn as nn
-import torch.optim as optim
-import torchaudio
-from transformers import LibriTTSForConditionalGeneratio
+import subprocess
+import mlflow
+from pprint import pprint
+from optimum.bettertransformer import BetterTransformer
+from transformers import AutoProcessor, AutoModel, AutoTokenizer, BartForConditionalGeneration, BarkModel
+from optimum.bettertransformer import BetterTransformer
+import torch
+import scipy
 
-# Colete um conjunto de dados de texto e áudio em português do Brasil.
-# ...
+def init():
+    global model
+    global device
 
-# Prepare o conjunto de dados para treinamento.
-# ...
+    cuda_available = torch.cuda.is_available()
+    device = "cuda" if cuda_available else "cpu"
 
-# Crie um modelo de redes neurais recorrentes.
-class TextToSpeech(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
-        super(TextToSpeech, self).__init__()
-        self.lstm = nn.LSTM(input_size, hidden_size)
-        self.linear = nn.Linear(hidden_size, output_size)
+    if cuda_available:
+        print(f"[INFO] CUDA version: {torch.version.cuda}")
+        print(f"[INFO] ID of current CUDA device: {torch.cuda.current_device()}")
+        print("[INFO] nvidia-smi output:")
+        pprint(
+            subprocess.run(["nvidia-smi"], stdout=subprocess.PIPE).stdout.decode(
+                "utf-8"
+            )
+        )
+    else:
+        print(
+            "[WARN] CUDA acceleration is not available. This model takes hours to run on medium size data."
+        )
 
-    def forward(self, x):
-        x, _ = self.lstm(x)
-        x = self.linear(x)
-        return x
+    model = BarkModel.from_pretrained("suno/bark-small", torch_dtype=torch.float16).to(device)
+    model = BetterTransformer.transform(model, keep_original_model=False)
+    model.enable_cpu_offload()
 
-# Treine o modelo.
-model = LibriTTSForConditionalGeneration.from_pretrained("viniciuslima/librivox-pt-br")
-optimizer = optim.Adam(model.parameters())
-criterion = nn.CrossEntropyLoss()
+    processor = AutoProcessor.from_pretrained("suno/bark-small")
+    model = AutoModel.from_pretrained("suno/bark-small")
 
-for epoch in range(100):
-    # Obter um lote de dados de treinamento.
-    x_train, y_train = get_training_batch()
+    inputs = processor(
+        text=["Hello, my name is Suno. And, uh — and I like pizza. [laughs] But I also have other interests such as playing tic tac toe."],
+        return_tensors="pt",
+    )
 
-    # Atualizar o modelo.
-    outputs = model(x_train)
-    loss = criterion(outputs, y_train)
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
+    speech_values = model.generate(**inputs, do_sample=True)
+    sampling_rate = model.generation_config.sample_rate
 
-# Teste o modelo.
-x_test, y_test = get_test_batch()
-outputs = model(x_test)
-loss = criterion(outputs, y_test)
-print(loss)
+    scipy.io.wavfile.write("bark_out.wav", rate=sampling_rate, data=speech_values.cpu().numpy().squeeze())
 
-# Use o modelo para converter texto em áudio.
-text = "Olá, mundo!"
-x = torch.tensor(text, dtype=torch.long)
-outputs = model(x)
-audio = torchaudio.functional.spectrogram(outputs)
+    mlflow.log_param("device", device)
+    mlflow.log_param("model", type(model).__name__)
 
-# Salve o arquivo de áudio.
-torchaudio.save(audio, "output.wav")
+init()
