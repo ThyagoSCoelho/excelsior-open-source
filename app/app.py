@@ -1,24 +1,52 @@
-# app/app.py
-import pyttsx3
+import torch
+import subprocess
+import mlflow
+from pprint import pprint
+from optimum.bettertransformer import BetterTransformer
+from transformers import AutoProcessor, AutoModel, AutoTokenizer, BartForConditionalGeneration, BarkModel
+from optimum.bettertransformer import BetterTransformer
+import torch
+import scipy
 
-engine = pyttsx3.init()
+def init():
+    global model
+    global device
 
-rate = engine.getProperty('rate')  # Velocidade de fala (padrão é 200)
-engine.setProperty('rate', rate - 50)  # Reduza a velocidade em 50 unidades
+    cuda_available = torch.cuda.is_available()
+    device = "cuda" if cuda_available else "cpu"
 
-# Defina uma entonação diferente usando propriedades de pitch
-engine.setProperty('pitch', 150)  # Valor padrão é 50, aumente para 150 para entonação mais alta
+    if cuda_available:
+        print(f"[INFO] CUDA version: {torch.version.cuda}")
+        print(f"[INFO] ID of current CUDA device: {torch.cuda.current_device()}")
+        print("[INFO] nvidia-smi output:")
+        pprint(
+            subprocess.run(["nvidia-smi"], stdout=subprocess.PIPE).stdout.decode(
+                "utf-8"
+            )
+        )
+    else:
+        print(
+            "[WARN] CUDA acceleration is not available. This model takes hours to run on medium size data."
+        )
 
-voices = engine.getProperty('voices')
-# for voice in voices:
-#     print("Voice:", voice.name)
-#     print(" - ID:", voice.id)
-    
-# Escolha um ID de voz com base na lista gerada no passo anterior
-selected_voice_id = "brazil"
-engine.setProperty('voice', selected_voice_id)
+    model = BarkModel.from_pretrained("suno/bark-small", torch_dtype=torch.float16).to(device)
+    model = BetterTransformer.transform(model, keep_original_model=False)
+    model.enable_cpu_offload()
 
-texto = "O Céu sobre o porto tinha cor de televisão num canal fora do ar. Considerada a obra precursora do movimento cyberpunk e um clássico da ficção científica moderna, Neuromancer conta a história de Case, um cowboy do ciberespaço e hacker da matrix. Como punição por tentar enganar os patrões, seu sistema nervoso foi contaminado por uma toxina que o impede de entrar no mundo virtual."
-# engine.say(texto)
-engine.save_to_file(texto, "neuromancer_ia_fala_saida.mp3")
-engine.runAndWait()
+    processor = AutoProcessor.from_pretrained("suno/bark-small")
+    model = AutoModel.from_pretrained("suno/bark-small")
+
+    inputs = processor(
+        text=["Hello, my name is Suno. And, uh — and I like pizza. [laughs] But I also have other interests such as playing tic tac toe."],
+        return_tensors="pt",
+    )
+
+    speech_values = model.generate(**inputs, do_sample=True)
+    sampling_rate = model.generation_config.sample_rate
+
+    scipy.io.wavfile.write("bark_out.wav", rate=sampling_rate, data=speech_values.cpu().numpy().squeeze())
+
+    mlflow.log_param("device", device)
+    mlflow.log_param("model", type(model).__name__)
+
+init()
