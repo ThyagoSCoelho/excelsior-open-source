@@ -28,23 +28,33 @@ def init():
         print(
             "[WARN] CUDA acceleration is not available. This model takes hours to run on medium size data."
         )
+        
+    # Load the model
+    try:
+        model = BarkModel.from_pretrained("suno/bark-small", torch_dtype=torch.float16).to(device)
+        model = BetterTransformer.transform(model, keep_original_model=False).to(device)
+        model.enable_cpu_offload()
+    except Exception as e:
+        print(
+            f"[ERROR] Error happened when loading the model on GPU or the default device. Error: {e}"
+        )
+        print("[INFO] Trying on CPU.")
+        model = BarkModel.from_pretrained("suno/bark-small", torch_dtype=torch.float16)
+        model = BetterTransformer.transform(model, keep_original_model=False)
+        device = "cpu"
 
-    model = BarkModel.from_pretrained("suno/bark-small", torch_dtype=torch.float16).to(device)
-    model = BetterTransformer.transform(model, keep_original_model=False)
-    model.enable_cpu_offload()
-
-    processor = AutoProcessor.from_pretrained("suno/bark-small")
-    model = AutoModel.from_pretrained("suno/bark-small")
+    processor = AutoProcessor.from_pretrained("suno/bark-small", force_download=True)
+    model = AutoModel.from_pretrained("suno/bark-small", force_download=True)
 
     inputs = processor(
-        text=["Hello, my name is Suno. And, uh — and I like pizza. [laughs] But I also have other interests such as playing tic tac toe."],
+        text=["O céu por cima do porto tinha a cor de uma TV que saiu do ar."],
         return_tensors="pt",
     )
 
     speech_values = model.generate(**inputs, do_sample=True)
     sampling_rate = model.generation_config.sample_rate
 
-    scipy.io.wavfile.write("bark_out.wav", rate=sampling_rate, data=speech_values.cpu().numpy().squeeze())
+    scipy.io.wavfile.write("outputs/teste2.wav", rate=sampling_rate, data=speech_values.cpu().numpy().squeeze())
 
     mlflow.log_param("device", device)
     mlflow.log_param("model", type(model).__name__)
