@@ -37,14 +37,14 @@ class Excelsior():
             text=text
         )
         audio_array, sample_rate = generator.executar()
-        self.save(audio_array, sample_rate)
+        return self.save(audio_array, sample_rate)
         
     def save(self, audio_array, sample_rate):
         now = datetime.now()
         timestamp_str = now.strftime("%Y%m%d_%H%M%S")
         filename = f"{parent_dir}/outputs/bark_out_{timestamp_str}.wav"
         write_wav(filename, rate=sample_rate, data=audio_array)
-        print(f"[RESULT] Audio salvo: {filename}")
+        return(f"[RESULT] Audio salvo: {filename}")
 
     # def log(self):
     #     mlflow.log_param("device", device)
