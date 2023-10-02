@@ -45,10 +45,9 @@ def init():
     # Load the model
     processor = AutoProcessor.from_pretrained(pretrained_model_name_or_path=model_pretreined)
     model = BarkModel.from_pretrained(pretrained_model_name_or_path=model_pretreined)
-    # ,
     #     config=config,
     #     local_files_only=True,
-    #     torch_dtype=torch.float16
+    #     
     # ).to(device)
         
     
