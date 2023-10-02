@@ -1,1 +1,5 @@
-mlruns*
+.vscode
+mlruns/
+model/
+outputs/
+app/**/**__pycache**
