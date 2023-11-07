@@ -14,7 +14,9 @@ excelsior.initialize()
 
 # Start the clock
 start_time = time.time()
-excelsior.process("O céu por cima do porto tinha a cor de uma TV que saiu do ar.")
+
+text = "O céu por cima do porto tinha a cor de uma TV que saiu do ar. — Não é que eu queira — Case ouviu enquanto abria caminho pela multidão que estava na porta do Chat. — Mas é como se o meu corpo tivesse criado, por si mesmo, esta enorme dependência da droga."
+excelsior.process(f"{start_time.hex.__str__}", text)
 
 # Stop the clock and print the elapsed time
 end_time = time.time()

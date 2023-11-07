@@ -3,9 +3,13 @@ from datetime import datetime
 from transformers import BarkModel, AutoProcessor
 from scipy.io.wavfile import write as write_wav
 
+VOICES_PRESET_MAP = {
+    "man_fine": "pt_speaker_5"
+}
+
 class TTSGenerator:
     def __init__(self, model: BarkModel, processor: AutoProcessor, device, text: string):
-        self.voice_preset = "v2/pt_speaker_6"
+        self.voice_preset = VOICES_PRESET_MAP["man_fine"]
         self.text = text
         self.model = model
         self.processor = processor

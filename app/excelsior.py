@@ -29,7 +29,7 @@ class Excelsior():
         self.processor = processor
         self.model = model
     
-    def process(self, text: string):        
+    def process(self, uuid: string, text: string):        
         generator = TTSGenerator(
             model=self.model, 
             processor=self.processor,
@@ -37,15 +37,16 @@ class Excelsior():
             text=text
         )
         audio_array, sample_rate = generator.executar()
-        return self.save(audio_array, sample_rate)
+        return self.save(audio_array, sample_rate, uuid)
         
-    def save(self, audio_array, sample_rate):
-        now = datetime.now()
-        timestamp_str = now.strftime("%Y%m%d_%H%M%S")
-        filename = f"{parent_dir}/outputs/bark_out_{timestamp_str}.wav"
-        write_wav(filename, rate=sample_rate, data=audio_array)
-        return(f"[RESULT] Audio salvo: {filename}")
-
+    def save(self, audio_array, sample_rate, uuid):
+        try:
+            filename = f"{parent_dir}/outputs/{uuid}.wav"
+            write_wav(filename, rate=sample_rate, data=audio_array)
+            return True
+        except Exception as e:
+            print(f"[ERROR] Unable to save the model on the machine. Error: {e}")
+            return False
     # def log(self):
     #     mlflow.log_param("device", device)
     #     mlflow.log_param("model", type(model).__name__)        
